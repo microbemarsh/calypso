@@ -1,0 +1,169 @@
+Jul-03 21:43:59.176 [main] DEBUG nextflow.cli.Launcher - $> nextflow run main.nf --input_dir /home/am503/Documents/calypso/test --blast_db /home/am503/Documents/calypso/gtdb220_16S_db --taxonomy /scratch/am503/gtdbr220//gtdbr220_16S_calypso_tax.tsv --blast_threads 8 --outdir /home/am503/Documents/calypso/test/results -c /home/am503/Documents/calypso/conf/calypso.config -profile conda
+Jul-03 21:43:59.245 [main] DEBUG nextflow.cli.CmdRun - N E X T F L O W  ~  version 25.04.6
+Jul-03 21:43:59.264 [main] DEBUG nextflow.plugin.PluginsFacade - Setting up plugin manager > mode=prod; embedded=false; plugins-dir=/home/am503/.nextflow/plugins; core-plugins: nf-amazon@2.15.0,nf-azure@1.16.0,nf-cloudcache@0.4.3,nf-codecommit@0.2.3,nf-console@1.2.1,nf-google@1.21.1,nf-k8s@1.0.0,nf-tower@1.11.4,nf-wave@1.12.1
+Jul-03 21:43:59.285 [main] INFO  o.pf4j.DefaultPluginStatusProvider - Enabled plugins: []
+Jul-03 21:43:59.286 [main] INFO  o.pf4j.DefaultPluginStatusProvider - Disabled plugins: []
+Jul-03 21:43:59.287 [main] INFO  org.pf4j.DefaultPluginManager - PF4J version 3.12.0 in 'deployment' mode
+Jul-03 21:43:59.309 [main] INFO  org.pf4j.AbstractPluginManager - No plugins
+Jul-03 21:43:59.323 [main] DEBUG nextflow.config.ConfigBuilder - Found config local: /home/am503/Documents/calypso/nextflow.config
+Jul-03 21:43:59.325 [main] DEBUG nextflow.config.ConfigBuilder - User config file: /home/am503/Documents/calypso/conf/calypso.config
+Jul-03 21:43:59.326 [main] DEBUG nextflow.config.ConfigBuilder - Parsing config file: /home/am503/Documents/calypso/nextflow.config
+Jul-03 21:43:59.326 [main] DEBUG nextflow.config.ConfigBuilder - Parsing config file: /home/am503/Documents/calypso/conf/calypso.config
+Jul-03 21:43:59.347 [main] DEBUG n.secret.LocalSecretsProvider - Secrets store: /home/am503/.nextflow/secrets/store.json
+Jul-03 21:43:59.349 [main] DEBUG nextflow.secret.SecretsLoader - Discovered secrets providers: [nextflow.secret.LocalSecretsProvider@79a1728c] - activable => nextflow.secret.LocalSecretsProvider@79a1728c
+Jul-03 21:43:59.359 [main] DEBUG nextflow.config.ConfigBuilder - Applying config profile: `conda`
+Jul-03 21:44:00.014 [main] DEBUG nextflow.config.ConfigBuilder - Applying config profile: `conda`
+Jul-03 21:44:00.047 [main] DEBUG nextflow.config.ConfigBuilder - Available config profiles: [debug, test, conda, singularity, docker]
+Jul-03 21:44:00.070 [main] DEBUG nextflow.cli.CmdRun - Applied DSL=2 from script declaration
+Jul-03 21:44:00.080 [main] DEBUG nextflow.cli.CmdRun - Launching `main.nf` [soggy_mccarthy] DSL2 - revision: 5e09328c06
+Jul-03 21:44:00.081 [main] DEBUG nextflow.plugin.PluginsFacade - Plugins default=[]
+Jul-03 21:44:00.081 [main] DEBUG nextflow.plugin.PluginsFacade - Plugins resolved requirement=[]
+Jul-03 21:44:00.126 [main] DEBUG nextflow.Session - Session UUID: cacc1df4-ac5e-46d7-af1f-69c24353427b
+Jul-03 21:44:00.126 [main] DEBUG nextflow.Session - Run name: soggy_mccarthy
+Jul-03 21:44:00.126 [main] DEBUG nextflow.Session - Executor pool size: 16
+Jul-03 21:44:00.134 [main] DEBUG nextflow.file.FilePorter - File porter settings maxRetries=3; maxTransfers=50; pollTimeout=null
+Jul-03 21:44:00.138 [main] DEBUG nextflow.util.ThreadPoolBuilder - Creating thread pool 'FileTransfer' minSize=10; maxSize=48; workQueue=LinkedBlockingQueue[-1]; allowCoreThreadTimeout=false
+Jul-03 21:44:00.156 [main] DEBUG nextflow.cli.CmdRun - 
+  Version: 25.04.6 build 5954
+  Created: 01-07-2025 11:27 UTC (06:27 CDT)
+  System: Linux 5.14.0-427.13.1.el9_4.x86_64
+  Runtime: Groovy 4.0.26 on OpenJDK 64-Bit Server VM 23.0.2-internal-adhoc.conda.src
+  Encoding: UTF-8 (UTF-8)
+  Process: 1518387@bb2u11c1 [192.168.148.1]
+  CPUs: 16 - Mem: 251.1 GB (93.2 GB) - Swap: 0 (0)
+Jul-03 21:44:00.192 [main] DEBUG nextflow.Session - Work-dir: /home/am503/Documents/calypso/work [nfs]
+Jul-03 21:44:00.219 [main] DEBUG nextflow.executor.ExecutorFactory - Extension executors providers=[]
+Jul-03 21:44:00.226 [main] DEBUG nextflow.Session - Observer factory: DefaultObserverFactory
+Jul-03 21:44:00.260 [main] DEBUG nextflow.Session - Observer factory (v2): LinObserverFactory
+Jul-03 21:44:00.283 [main] DEBUG nextflow.cache.CacheFactory - Using Nextflow cache factory: nextflow.cache.DefaultCacheFactory
+Jul-03 21:44:00.289 [main] DEBUG nextflow.util.CustomThreadPool - Creating default thread pool > poolSize: 17; maxThreads: 1000
+Jul-03 21:44:00.332 [main] DEBUG nextflow.Session - Session start
+Jul-03 21:44:00.335 [main] DEBUG nextflow.trace.TraceFileObserver - Workflow started -- trace file: /home/am503/Documents/calypso/test/results/pipeline_info/execution_trace_2025-07-03_21-43-59.txt
+Jul-03 21:44:00.476 [main] DEBUG nextflow.script.ScriptRunner - > Launching execution
+Jul-03 21:44:00.906 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_high` matches labels `process_high` for process with name ATLAS:BLAST
+Jul-03 21:44:00.907 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withName:BLAST` matches process ATLAS:BLAST
+Jul-03 21:44:00.913 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:00.913 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:00.918 [main] DEBUG nextflow.executor.Executor - [warm up] executor > local
+Jul-03 21:44:00.923 [main] DEBUG n.processor.LocalPollingMonitor - Creating local task monitor for executor 'local' > cpus=16; memory=251.1 GB; capacity=16; pollInterval=100ms; dumpInterval=5m
+Jul-03 21:44:00.924 [main] DEBUG n.processor.TaskPollingMonitor - >>> barrier register (monitor: local)
+Jul-03 21:44:00.939 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:BLAST': maxForks=0; fair=false; array=0
+Jul-03 21:44:00.965 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_medium` matches labels `process_medium` for process with name ATLAS:SCORE_BLAST
+Jul-03 21:44:00.966 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:00.966 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:00.967 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:SCORE_BLAST': maxForks=0; fair=false; array=0
+Jul-03 21:44:00.975 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_low` matches labels `process_low` for process with name ATLAS:MAKE_EDGE_LIST
+Jul-03 21:44:00.976 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:00.976 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:00.977 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:MAKE_EDGE_LIST': maxForks=0; fair=false; array=0
+Jul-03 21:44:00.981 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_medium` matches labels `process_medium` for process with name ATLAS:MAKE_PARTITIONS
+Jul-03 21:44:00.982 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:00.983 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:00.983 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:MAKE_PARTITIONS': maxForks=0; fair=false; array=0
+Jul-03 21:44:00.987 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_low` matches labels `process_low` for process with name ATLAS:READ_PARTITION_ASSIGNMENT
+Jul-03 21:44:00.989 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:00.989 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:00.989 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:READ_PARTITION_ASSIGNMENT': maxForks=0; fair=false; array=0
+Jul-03 21:44:00.994 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_low` matches labels `process_low` for process with name ATLAS:ASSIGN_TAXON_OUTLIERS
+Jul-03 21:44:00.995 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:00.996 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:00.996 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:ASSIGN_TAXON_OUTLIERS': maxForks=0; fair=false; array=0
+Jul-03 21:44:00.998 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_low` matches labels `process_low` for process with name ATLAS:ASSIGN_TAXON_PARTITIONS
+Jul-03 21:44:01.000 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:01.000 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:01.001 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:ASSIGN_TAXON_PARTITIONS': maxForks=0; fair=false; array=0
+Jul-03 21:44:01.004 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_low` matches labels `process_low` for process with name ATLAS:ASSIGN_TAXON_READS
+Jul-03 21:44:01.006 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:01.006 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:01.006 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:ASSIGN_TAXON_READS': maxForks=0; fair=false; array=0
+Jul-03 21:44:01.015 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withLabel:process_low` matches labels `process_low` for process with name ATLAS:GENERATE_OUTPUT
+Jul-03 21:44:01.016 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Jul-03 21:44:01.016 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Jul-03 21:44:01.016 [main] DEBUG nextflow.processor.TaskProcessor - Creating process 'ATLAS:GENERATE_OUTPUT': maxForks=0; fair=false; array=0
+Jul-03 21:44:01.023 [main] DEBUG nextflow.Session - Workflow process names [dsl2]: READ_PARTITION_ASSIGNMENT, ATLAS:READ_PARTITION_ASSIGNMENT, ATLAS:BLAST, ATLAS:GENERATE_OUTPUT, GENERATE_OUTPUT, ATLAS:SCORE_BLAST, SCORE_BLAST, ATLAS:MAKE_EDGE_LIST, ASSIGN_TAXON_OUTLIERS, MAKE_EDGE_LIST, ASSIGN_TAXON_PARTITIONS, ATLAS:ASSIGN_TAXON_READS, ASSIGN_TAXON, ASSIGN_TAXON_READS, ATLAS:ASSIGN_TAXON_OUTLIERS, BLAST, ATLAS:ASSIGN_TAXON_PARTITIONS, MAKE_PARTITIONS, ATLAS:MAKE_PARTITIONS
+Jul-03 21:44:01.031 [main] WARN  nextflow.Session - There's no process matching config selector: CUSTOM_DUMPSOFTWAREVERSIONS
+Jul-03 21:44:01.033 [main] DEBUG nextflow.Session - Igniting dataflow network (11)
+Jul-03 21:44:01.038 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:BLAST
+Jul-03 21:44:01.039 [PathVisitor-1] DEBUG nextflow.file.PathVisitor - files for syntax: glob; folder: /home/am503/Documents/calypso/test/; pattern: *.{fasta,fa,fas,fna}; options: [checkIfExists:true]
+Jul-03 21:44:01.039 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:SCORE_BLAST
+Jul-03 21:44:01.039 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:MAKE_EDGE_LIST
+Jul-03 21:44:01.040 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:MAKE_PARTITIONS
+Jul-03 21:44:01.040 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:READ_PARTITION_ASSIGNMENT
+Jul-03 21:44:01.040 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:ASSIGN_TAXON_OUTLIERS
+Jul-03 21:44:01.041 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:ASSIGN_TAXON_PARTITIONS
+Jul-03 21:44:01.041 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:ASSIGN_TAXON_READS
+Jul-03 21:44:01.041 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > ATLAS:GENERATE_OUTPUT
+Jul-03 21:44:01.042 [main] DEBUG nextflow.script.ScriptRunner - Parsed script files:
+  Script_9f46470dcbcf0645: /home/am503/Documents/calypso/modules/local/make_edge_list.nf
+  Script_9bbc5965f70379d1: /home/am503/Documents/calypso/modules/local/score_blast.nf
+  Script_a25858564d01a5ae: /home/am503/Documents/calypso/modules/local/generate_output.nf
+  Script_b49e5cee271046dc: /home/am503/Documents/calypso/main.nf
+  Script_9485c0116a139278: /home/am503/Documents/calypso/modules/local/read_partition_assignment.nf
+  Script_e4f81b2bd2b01eea: /home/am503/Documents/calypso/modules/local/blast.nf
+  Script_5e89b06ae4e78bef: /home/am503/Documents/calypso/modules/local/assign_taxon.nf
+  Script_60d0de3aa1896dd9: /home/am503/Documents/calypso/modules/local/make_partitions.nf
+Jul-03 21:44:01.042 [main] DEBUG nextflow.script.ScriptRunner - > Awaiting termination 
+Jul-03 21:44:01.042 [main] DEBUG nextflow.Session - Session await
+Jul-03 21:44:01.095 [Actor Thread 8] DEBUG nextflow.conda.CondaCache - conda found local env for environment=bioconda::blast=2.16.0; path=/home/am503/Documents/calypso/work/conda/env-285f08e09f04a2746a0d0472c1714511
+Jul-03 21:44:01.154 [Task submitter] DEBUG n.executor.local.LocalTaskHandler - Launch cmd line: /bin/bash -ue .command.run
+Jul-03 21:44:01.156 [Task submitter] INFO  nextflow.Session - [aa/1b115b] Submitted process > ATLAS:BLAST (GCF_000007365)
+Jul-03 21:44:01.175 [Task submitter] DEBUG n.executor.local.LocalTaskHandler - Launch cmd line: /bin/bash -ue .command.run
+Jul-03 21:44:01.175 [Task submitter] INFO  nextflow.Session - [37/929de3] Submitted process > ATLAS:BLAST (GCF_000006945)
+Jul-03 21:44:02.245 [Task monitor] DEBUG n.processor.TaskPollingMonitor - Task completed > TaskHandler[id: 2; name: ATLAS:BLAST (GCF_000007365); status: COMPLETED; exit: 3; error: -; workDir: /home/am503/Documents/calypso/work/aa/1b115b28b18bb43fbf51d5a14dc664]
+Jul-03 21:44:02.245 [Task monitor] DEBUG nextflow.util.ThreadPoolBuilder - Creating thread pool 'TaskFinalizer' minSize=10; maxSize=48; workQueue=LinkedBlockingQueue[-1]; allowCoreThreadTimeout=false
+Jul-03 21:44:02.249 [Task monitor] DEBUG n.processor.TaskPollingMonitor - Task completed > TaskHandler[id: 1; name: ATLAS:BLAST (GCF_000006945); status: COMPLETED; exit: 3; error: -; workDir: /home/am503/Documents/calypso/work/37/929de34e6bf61f1d0fab4fddb5a1eb]
+Jul-03 21:44:02.252 [TaskFinalizer-2] DEBUG nextflow.processor.TaskProcessor - Handling unexpected condition for
+  task: name=ATLAS:BLAST (GCF_000006945); work-dir=/home/am503/Documents/calypso/work/37/929de34e6bf61f1d0fab4fddb5a1eb
+  error [nextflow.exception.ProcessFailedException]: Process `ATLAS:BLAST (GCF_000006945)` terminated with an error exit status (3)
+Jul-03 21:44:02.261 [TaskFinalizer-2] ERROR nextflow.processor.TaskProcessor - Error executing process > 'ATLAS:BLAST (GCF_000006945)'
+
+Caused by:
+  Process `ATLAS:BLAST (GCF_000006945)` terminated with an error exit status (3)
+
+
+Command executed:
+
+  # Run BLAST with the required output format for ATLAS using existing database
+  blastn \
+      -query GCF_000006945.2_genomic_NC_003197.2_289183_290720__.fa \
+      -db /home/am503/Documents/calypso/gtdb220_16S_db \
+      -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qseq sseq qlen" \
+      -task blastn \
+      -num_threads 8 \
+      -out GCF_000006945_blast.out \
+  
+  
+  cat <<-END_VERSIONS > versions.yml
+  "ATLAS:BLAST":
+      blast: $(blastn -version 2>&1 | sed 's/^.*blastn: //; s/ .*$//')
+  END_VERSIONS
+
+Command exit status:
+  3
+
+Command output:
+  (empty)
+
+Command error:
+  BLAST Database error: Database memory map file error
+
+Work dir:
+  /home/am503/Documents/calypso/work/37/929de34e6bf61f1d0fab4fddb5a1eb
+
+Tip: you can replicate the issue by changing to the process work dir and entering the command `bash .command.run`
+Jul-03 21:44:02.262 [TaskFinalizer-1] DEBUG nextflow.processor.TaskProcessor - Handling unexpected condition for
+  task: name=ATLAS:BLAST (GCF_000007365); work-dir=/home/am503/Documents/calypso/work/aa/1b115b28b18bb43fbf51d5a14dc664
+  error [nextflow.exception.ProcessFailedException]: Process `ATLAS:BLAST (GCF_000007365)` terminated with an error exit status (3)
+Jul-03 21:44:02.266 [main] DEBUG nextflow.Session - Session await > all processes finished
+Jul-03 21:44:02.271 [TaskFinalizer-2] INFO  nextflow.Session - Execution cancelled -- Finishing pending tasks before exit
+Jul-03 21:44:02.275 [Task monitor] DEBUG n.processor.TaskPollingMonitor - <<< barrier arrives (monitor: local) - terminating tasks monitor poll loop
+Jul-03 21:44:02.275 [main] DEBUG nextflow.Session - Session await > all barriers passed
+Jul-03 21:44:02.276 [main] DEBUG nextflow.util.ThreadPoolManager - Thread pool 'TaskFinalizer' shutdown completed (hard=false)
+Jul-03 21:44:02.292 [main] DEBUG n.trace.WorkflowStatsObserver - Workflow completed > WorkflowStats[succeededCount=0; failedCount=2; ignoredCount=0; cachedCount=0; pendingCount=0; submittedCount=0; runningCount=0; retriesCount=0; abortedCount=0; succeedDuration=0ms; failedDuration=16.3s; cachedDuration=0ms;loadCpus=0; loadMemory=0; peakRunning=2; peakCpus=16; peakMemory=64 GB; ]
+Jul-03 21:44:02.292 [main] DEBUG nextflow.trace.TraceFileObserver - Workflow completed -- saving trace file
+Jul-03 21:44:02.294 [main] DEBUG nextflow.trace.ReportObserver - Workflow completed -- rendering execution report
+Jul-03 21:44:02.853 [main] DEBUG nextflow.trace.TimelineObserver - Workflow completed -- rendering execution timeline
+Jul-03 21:44:02.938 [main] WARN  nextflow.dag.GraphvizRenderer - Graphviz is required to render the execution DAG in the given format -- See http://www.graphviz.org for more info.
+Jul-03 21:44:03.083 [main] DEBUG nextflow.cache.CacheDB - Closing CacheDB done
+Jul-03 21:44:03.092 [main] DEBUG nextflow.util.ThreadPoolManager - Thread pool 'FileTransfer' shutdown completed (hard=false)
+Jul-03 21:44:03.092 [main] DEBUG nextflow.script.ScriptRunner - > Execution complete -- Goodbye

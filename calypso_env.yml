@@ -1,0 +1,16 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - minimap2
+  - samtools
+  - pysam
+  - numpy
+  - pandas
+  - biopython
+  - pip
+  - pip:
+    - scipy
+    - networkx
+    - python-louvain
+    - -e .

@@ -1,0 +1,2 @@
+[console_scripts]
+calypso = calypso:main
