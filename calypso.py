@@ -1,38 +1,34 @@
 #!/usr/bin/env python3
 """
-Self-contained taxonomy assignment pipeline combining:
-- Phase 1: Outlier detection (ATLAS `score_blast` logic, inlined)
-- Phase 2: Graph clustering (ATLAS `make_edge_list` + `make_partitions`)
-- Phase 3: Read-to-partition assignment (ATLAS `read_partition_assignment`)
-- Phase 4: Classification via Minimap2 + aln_stats + LCA consensus
-- Phase 5: Final merge of outlier-based and partition-based LCA
+Calypso: Standalone taxonomy pipeline using inlined EMU alignment logic + ATLAS consensus
 
-Requirements:
-  pip install numpy scipy biopython networkx python-louvain aln_stats minimap2
+Combines:
+- Phase 1: Outlier detection (inlined ATLAS score_blast logic) using EMU-derived CIGAR parsing
+- Phase 2: Co-occurrence graph + Louvain clustering
+- Phase 3: Read-to-partition assignment
+- Phase 4: LCA consensus on outliers + partitions
+- Phase 5: Final merge of both LCA outputs (includes all queries)
 
 Usage:
   calypso.py \
-    --query queries.fasta \
+    --query_dir fasta_dir \
     --ref ref_16S.fasta \
     --tax_file tax_map.tsv \
     --outdir results \
-    [--qc 0.9] [--pid 99] [--raiseto 2.7] [--threads 8]
-"""
-import os
-import sys
-import argparse
-import subprocess
-import math
-from itertools import groupby, combinations
+    [--qc 0.9] [--pid 99] [--raiseto 2.7] [--type map-ont] [--threads 8]
 
+Requirements:
+  pip install numpy scipy biopython networkx python-louvain pysam
+"""
+import os, sys, argparse, subprocess, math
+from itertools import combinations
+import glob
 import numpy as np
 from scipy import special
 from Bio import SeqIO
 import networkx as nx
 import community as community_louvain
-
-# Must have aln_stats library available
-from aln_stats import parse_sam, compute_identity, compute_coverage
+import pysam
 
 # Edgar et al.'s identity thresholds
 THRESHOLDS = {
@@ -45,187 +41,343 @@ THRESHOLDS = {
 }
 RANKS_FULL = ['domain','phylum','class','order','family','genus','species']
 
-# --- ATLAS Phase 1: outlier detection (inlined score_blast) --------------
+# --- EMU get_align_stats + get_align_len (inlined) --------------------
+def get_align_stats(aln):
+    ops = aln.cigartuples or []
+    ins = sum(length for code, length in ops if code == 1)
+    dels = sum(length for code, length in ops if code == 2)
+    soft = sum(length for code, length in ops if code == 4)
+    mm = aln.get_tag('NM') - ins - dels if aln.has_tag('NM') else 0
+    return ins, dels, soft, mm
 
-def fasta_iter(fasta_name):
-    """Return dict of seq_name->sequence and length."""
-    queries, qlen = {}, {}
-    with open(fasta_name) as fh:
-        faiter = (x[1] for x in groupby(fh, lambda line: line[0]=='>'))
-        for header in faiter:
-            hdr = next(header)[1:].strip().split()[0]
-            seq = ''.join(s.strip() for s in next(faiter))
-            queries[hdr] = seq
-            qlen[hdr] = len(seq)
-    return queries, qlen
-
-
-def calc_entropy(counts, total):
-    if total == 0: return 0.0
-    probs = [c/total for c in counts]
-    return -sum(p*math.log(p,4) for p in probs if p>0)
-
-
-def calc_col_score(partial, total, gh, g):
-    return sum(gh[p] for p in partial) - len(partial)*gh[0] - g[total]
-
-
+def get_align_len(aln):
+    return sum(length for code, length in (aln.cigartuples or [])
+               if code in (0,1,2,7,8))
+# --- ATLAS MSA scoring (inlined) --------------------------------------
 def execute_msa(seqs, width, raiseto, gh, g):
-    # seqs: list of equal-length lists of bases
     arr = {b: np.cumsum([[1 if x==b else 0 for x in row] for row in seqs], axis=0)
            for b in ['A','C','T','G']}
-    tot = sum(arr[b][-1] for b in arr)
-    entropy = [calc_entropy([arr[b][-1][i] for b in arr], tot[i]) for i in range(width)]
-    base = sum((entropy[i]**raiseto)*calc_col_score([arr[b][-1][i] for b in arr], tot[i], gh, g)
-               if tot[i]>0 else 0 for i in range(width))
+    tot = [sum(arr[b][-1][i] for b in arr) for i in range(width)]
+    entropy = [ -sum((arr[b][-1][i]/tot[i]) * math.log(arr[b][-1][i]/tot[i],4)
+                      for b in arr if tot[i]>0 and arr[b][-1][i]>0)
+                if tot[i]>0 else 0
+                for i in range(width)]
+    base = sum((entropy[i]**raiseto)*(
+                   sum(special.gammaln(arr[b][-1][i]+0.5) for b in arr)
+                   - len(arr)*special.gammaln(0.5)
+                   - special.gammaln(tot[i]+2)
+               ) for i in range(width) if tot[i]>0)
     scores = [base]
-    for k in range(1, len(seqs)):
+    for k in range(1,len(seqs)):
         pre = {b: arr[b][-1] - arr[b][k-1] for b in arr}
         post = {b: arr[b][k-1] for b in arr}
-        tp = sum(pre[b] for b in arr)
-        to = sum(post[b] for b in arr)
-        sp = sum((entropy[i]**raiseto)*calc_col_score([pre[b][i] for b in arr], pre[b][i] and tp, gh, g)
-                 if tp>0 else 0 for i in range(width))
-        so = sum((entropy[i]**raiseto)*calc_col_score([post[b][i] for b in arr], post[b][i] and to, gh, g)
-                 if to>0 else 0 for i in range(width))
+        tp = sum(pre[b][i] for b in arr for i in range(width))
+        to = sum(post[b][i] for b in arr for i in range(width))
+        sp = sum((entropy[i]**raiseto)*(
+                      sum(special.gammaln(pre[b][i]+0.5) for b in arr)
+                      - len(arr)*special.gammaln(0.5)
+                      - special.gammaln(tp+2)
+                  ) for i in range(width) if tp>0)
+        so = sum((entropy[i]**raiseto)*(
+                      sum(special.gammaln(post[b][i]+0.5) for b in arr)
+                      - len(arr)*special.gammaln(0.5)
+                      - special.gammaln(to+2)
+                  ) for i in range(width) if to>0)
         scores.append(sp+so-base)
-    if len(scores)>=3 and scores[-2]>max(scores[-1],scores[-3]) and scores[-2]>0:
+    if len(scores)>=3 and scores[-2]>scores[-1] and scores[-2]>scores[-3] and scores[-2]>0:
         return len(scores)-2, scores
     return -1, scores
 
+# --- select outliers --------------------------------------------------
+def write_outliers(name, recs, fout, fsum, sub, raiseto, gh, g):
+    """Select outliers, record best‐hit PID/ref, then run ATLAS MSA logic."""
+    # extract all PIDs & pick the best
+    pid_vals = [ float(info.split('\t')[2]) for *_, info in recs ]
+    best_idx = pid_vals.index(max(pid_vals)) if recs else None
+    best_pid = pid_vals[best_idx] if recs else None
+    best_ref = recs[best_idx][1]     if recs else None
 
-def write_outliers(name, recs, out_out, out_sum, subset):
-    # recs: list of (aligned_query_list, ref_id)
-    pid_names = [rid for _,rid in recs]
-    seq_list = [aln for aln,_ in recs]
-    idx, scores = execute_msa(seq_list, len(seq_list[0]), raiseto, gh, g) if recs else (-1,[])
-    if idx<=0:
-        out_sum.write(f"{name}\tNA\t{';'.join(pid_names)}\tNA\n")
-        subset.write("\n".join(map(lambda x:x[2], recs))+"\n")
+    ids = [rid for _, rid, _ in recs]
+
+    # no hits
+    if not recs:
+        fsum.write(f"{name}\tNA\tNA\tNA\tNA\n")
+        fout.write(f"{name}\tNA\n")
+        sub.write("\n")
         return
-    candidates = pid_names[:idx]
-    out_sum.write(f"{name}\t{';'.join(candidates)}\t{scores[idx]:.3f}\n")
-    out_out.write(f"{name}\t{';'.join(candidates)}\n")
-    subset.write("\n".join([recs[i][2] for i in range(idx)])+"\n")
 
+    # few hits (<3) -> just list them
+    if len(recs) < 3:
+        cand = ids
+        fsum.write(
+            f"{name}\t{best_pid:.2f}\t{best_ref}"
+            f"\t{';'.join(cand)}\tNA\n"
+        )
+        fout.write(f"{name}\t{';'.join(cand)}\n")
+        sub.write("\n".join(info for _,_,info in recs) + "\n")
+        return
 
-def phase1_minimap(query_fasta, sam_file, outdir, qc, pid_thr, raiseto):
-    """Runs ATLAS outlier detection using precomputed SAM + aln_stats"""
-    queries, qlen = fasta_iter(query_fasta)
+    # ATLAS MSA‐based outlier detection
+    seqs = [alist for alist,_,_ in recs]
+    idx, scores = execute_msa(seqs, len(seqs[0]), raiseto, gh, g)
+
+    if idx <= 0:
+        # fallback to all
+        cand = ids
+        fsum.write(
+            f"{name}\t{best_pid:.2f}\t{best_ref}"
+            f"\t{';'.join(cand)}\tNA\n"
+        )
+        fout.write(f"{name}\t{';'.join(cand)}\n")
+        sub.write("\n".join(info for _,_,info in recs) + "\n")
+    else:
+        cand = ids[:idx]
+        fsum.write(
+            f"{name}\t{best_pid:.2f}\t{best_ref}"
+            f"\t{';'.join(cand)}\t{scores[idx]:.3f}\n"
+        )
+        fout.write(f"{name}\t{';'.join(cand)}\n")
+        sub.write("\n".join(recs[i][2] for i in range(idx)) + "\n")
+
+# --- Phase 1: outlier detection ---------------------------------------
+def phase1(query_fasta, sam_file, outdir, qc, pid_thr, raiseto):
+
+    seqs = {r.id: str(r.seq) for r in SeqIO.parse(query_fasta, 'fasta')}
+    qlen = {k: len(v) for k, v in seqs.items()}
     os.makedirs(outdir, exist_ok=True)
-    out_out = open(os.path.join(outdir,'outliers.txt'),'w')
-    out_sum = open(os.path.join(outdir,'outlier_summary.txt'),'w')
-    subset = open(os.path.join(outdir,'subset.blast'),'w')
-    # precompute gamma
-    maxh=500; gh=[special.gammaln(i+0.5) for i in range(maxh+10)]; g=[special.gammaln(i+2) for i in range(maxh+10)]
-    # parse alignments
-    recs_map={}
-    for rec in parse_sam(sam_file):
-        pid=compute_identity(rec); cov=compute_coverage(rec)
-        if cov<qc or pid<pid_thr: continue
-        # aligned query as list
-        aln_q = list(rec.aligned_query)
-        recs_map.setdefault(rec.qname,[]).append((aln_q, rec.rname, f"{rec.qname}\t{rec.rname}	{pid:.2f}\t{cov:.3f}"))
-    # write per-query
-    for qname,recs in recs_map.items():
-        write_outliers(qname, recs, out_out, out_sum, subset)
-    out_out.close(); out_sum.close(); subset.close()
-    return os.path.join(outdir,'outliers.txt')
 
-# --- ATLAS Phase 2: co-occurrence edges ------------------------------
-def make_edge_list(out_f, edges_f):
+    fout = open(f"{outdir}/outliers.txt", 'w')
+    fsum = open(f"{outdir}/outlier_summary.txt", 'w')
+    sub  = open(f"{outdir}/subset.blast",    'w')
+
+    # <-- new header with best_pid & best_ref columns -->
+    fsum.write("SequenceID\tbest_pid\tbest_ref\tcandidates\tatlas_score\n")
+    
+    maxh = 500
+    gh = [special.gammaln(i + 0.5) for i in range(maxh + 10)]
+    g  = [special.gammaln(i + 2)   for i in range(maxh + 10)]
+
+    recs_map = {}
+    sam = pysam.AlignmentFile(sam_file, 'r')
+    for aln in sam.fetch():
+        if aln.is_secondary or aln.is_supplementary or aln.reference_name is None:
+            continue
+        ins, dels, soft, mm = get_align_stats(aln)
+        alen = get_align_len(aln)
+        pid  = (alen - mm) / alen * 100
+        cov  = alen / qlen.get(aln.query_name, alen)
+        if cov < qc or pid < pid_thr:
+            continue
+        recs_map.setdefault(aln.query_name, []).append(
+            (list(aln.query_sequence.replace('-', '')),
+             aln.reference_name,
+             f"{aln.query_name}\t{aln.reference_name}\t{pid:.2f}\t{cov:.3f}")
+        )
+    sam.close()
+
+    for q, recs in recs_map.items():
+        write_outliers(q, recs, fout, fsum, sub, raiseto, gh, g)
+
+    fout.close()
+    fsum.close()
+    sub.close()
+    return f"{outdir}/outliers.txt"
+
+# --- Phase 2: graph & clusters ----------------------------------------
+def make_edge_list(in_f, out_f):
+    os.makedirs(os.path.dirname(out_f), exist_ok=True)
     G=nx.Graph()
-    for ln in open(out_f):
-        qid, cand=ln.strip().split("\t")
-        hits=cand.split(';') if cand else []
+    for ln in open(in_f):
+        _,c=ln.strip().split("\t")
+        hits=c.split(';') if c else []
         for a,b in combinations(hits,2): G.add_edge(a,b)
-    nx.write_edgelist(G, edges_f, data=False)
-    return edges_f
-
-# --- ATLAS Phase 3: Louvain partitions ------------------------------
-def make_partitions(edges_f, part_f):
-    G=nx.read_edgelist(edges_f)
-    part=community_louvain.best_partition(G)
-    with open(part_f,'w') as out:
-        for node,com in part.items(): out.write(f"{node}\t{com}\n")
-    return part_f
-
-# --- ATLAS Phase 4: query->partition assignment ---------------------
-def read_partition_assignment(out_f, part_f, r2p_f):
-    pmap={ln.split()[0]:ln.split()[1] for ln in open(part_f)}
-    with open(r2p_f,'w') as out:
-        for ln in open(out_f):
-            qid,c=ln.strip().split("\t")
-            parts=sorted({pmap.get(h) for h in c.split(';') if h in pmap})
-            out.write(f"{qid}\t{';'.join(parts)}\n")
-    return r2p_f
-
-# --- Phase 5: LCA taxonomy -----------------------------------------
-def load_taxonomy(path):
-    idx=[0,2,5,8,10,12,13]
-    tax={}
-    for ln in open(path):
-        tid,lin=ln.strip().split('\t',1)
-        lv=lin.split(';'); lv+=['Unclassified']*(max(idx)+1-len(lv))
-        tax[tid]=[lv[i] for i in idx]
-    return tax
-
-
-def assign_lca(in_f, tax, out_f):
-    with open(out_f,'w') as out:
-        out.write('SequenceID\t'+";".join(RANKS_FULL)+"\n")
-        for ln in open(in_f):
-            seq,ids=ln.strip().split('\t')
-            lineages=[tax.get(i, ['Unassigned']*7) for i in ids.split(';')]
-            lca=[]
-            for vals in zip(*lineages):
-                if len(set(vals))==1: lca.append(vals[0])
-                else: break
-            out.write(seq+'\t'+';'.join(lca or ['Unassigned'])+'\n')
+    nx.write_edgelist(G,out_f,data=False)
     return out_f
 
-# --- ATLAS Phase 6: merge -------------------------------------------
-def generate_output(out_t, part_t, final_f):
-    ot={ln.split()[0]:ln.split()[1] for ln in open(out_t) if not ln.startswith('SequenceID')}
-    pt={ln.split()[0]:ln.split()[1] for ln in open(part_t) if not ln.startswith('SequenceID')}
-    with open(final_f,'w') as out:
-        out.write('SequenceID\t'+";".join(RANKS_FULL)+"\n")
-        for seq in sorted(set(ot)|set(pt)):
-            tax=ot.get(seq) or pt.get(seq) or 'Unassigned'
-            out.write(seq+'\t'+tax+'\n')
+def make_partitions(edges, out_f):
+    os.makedirs(os.path.dirname(out_f), exist_ok=True)
+    G=nx.read_edgelist(edges)
+    part=community_louvain.best_partition(G)
+    with open(out_f,'w') as o:
+        for n,c in part.items(): o.write(f"{n}\t{c}\n")
+    return out_f
+
+# --- Phase 3: read->partition -----------------------------------------
+def read_partition_assignment(in_f, part_f, out_f):
+    os.makedirs(os.path.dirname(out_f), exist_ok=True)
+    pm={ln.split()[0]:ln.split()[1] for ln in open(part_f)}
+    with open(out_f,'w') as o:
+        for ln in open(in_f):
+            q,c=ln.strip().split("\t")
+            ps=sorted({pm.get(h) for h in c.split(';') if h in pm})
+            o.write(f"{q}\t{';'.join(ps)}\n")
+    return out_f
+
+# --- Phase 4: LCA ------------------------------------------------------
+def load_taxonomy(path):
+    """
+    Read lines of “tid \\t domain;phylum;class;order;family;genus;species”
+    into a dict tid -> [domain,phylum,class,order,family,genus,species].
+    """
+    tax = {}
+    with open(path) as f:
+        for ln in f:
+            tid, lin = ln.rstrip().split('\t', 1)
+            ranks = lin.split(';')
+            # pad to exactly 7 ranks
+            if len(ranks) < 7:
+                ranks += ['Unclassified'] * (7 - len(ranks))
+            tax[tid] = ranks[:7]
+    return tax
+
+def assign_lca(in_f, tax, out_f):
+    os.makedirs(os.path.dirname(out_f), exist_ok=True)
+    with open(out_f,'w') as o:
+        o.write('SequenceID\t' + ';'.join(RANKS_FULL) + '\n')
+        for ln in open(in_f):
+            line = ln.strip()
+            # skip empty or malformed lines
+            if not line or '\t' not in line:
+                continue
+            seq, ids = line.split('\t', 1)
+            # build list of taxonomic arrays (or empty if 'NA')
+            vals = [tax.get(i, ['Unassigned']*7) for i in ids.split(';')] if ids != 'NA' else []
+            # compute deepest common prefix
+            lca = []
+            for tpl in zip(*vals):
+                if len(set(tpl)) == 1:
+                    lca.append(tpl[0])
+                else:
+                    break
+            o.write(f"{seq}\t{';'.join(lca or ['Unassigned'])}\n")
+    return out_f
+
+# --- Phase 5: merge (includes all queries) ------------------------------
+def generate_output(out_lca, part_lca, query_fasta, final_f, taxmap):
+    import os
+    from Bio import SeqIO
+
+    # load best‐hit summary
+    summary = {}
+    summary_fp = os.path.join(
+        os.path.dirname(out_lca), '..', 'phase1', 'outlier_summary.txt'
+    )
+    for ln in open(summary_fp):
+        if ln.startswith('SequenceID'): continue
+        seq, pid, ref, *_ = ln.strip().split('\t')
+        summary[seq] = (pid, ref)
+
+    # load the two LCA fallbacks (not used if thresholds override)
+    ot = {l.split('\t')[0]:l.split('\t')[1]
+          for l in open(out_lca)   if not l.startswith('SequenceID')}
+    pt = {l.split('\t')[0]:l.split('\t')[1]
+          for l in open(part_lca) if not l.startswith('SequenceID')}
+
+    # order thresholds from most‐stringent (species) to least
+    TH_ORDER = ['species','genus','family','order','class','phylum']
+
+    # prepare output
+    query_ids = [r.id for r in SeqIO.parse(query_fasta, 'fasta')]
+    os.makedirs(os.path.dirname(final_f), exist_ok=True)
+    with open(final_f, 'w') as o:
+        o.write('SequenceID\tbest_pid\tbest_ref\t' + ';'.join(RANKS_FULL) + '\n')
+
+        for seq in query_ids:
+            pid, ref = summary.get(seq, ('NA','NA'))
+            # figure deepest rank we pass
+            try:
+                pidf = float(pid)
+                rank_idx = None
+                for rank in TH_ORDER:
+                    if pidf >= THRESHOLDS[rank]:
+                        rank_idx = RANKS_FULL.index(rank)
+                        break
+            except ValueError:
+                rank_idx = None
+
+            if rank_idx is not None and ref != 'NA':
+                tid = ref.split(':',1)[0]
+                full_lin = taxmap.get(tid, ['Unclassified'] * 7)
+                # keep 0..rank_idx, blank below
+                lineage = full_lin[:rank_idx+1] + ['Unclassified']*(6-rank_idx)
+            else:
+                lineage = ['Unassigned'] * 7
+
+            o.write(f"{seq}\t{pid}\t{ref}\t{';'.join(lineage)}\n")
+
     return final_f
 
-# --- Main -----------------------------------------------------------
+# --- Main -------------------------------------------------------------
 if __name__=='__main__':
-    p=argparse.ArgumentParser()
-    p.add_argument('--query', required=True)
-    p.add_argument('--ref', required=True)
+    p = argparse.ArgumentParser()
+    grp = p.add_mutually_exclusive_group(required=True)
+    grp.add_argument('--query', help="Single query FASTA")
+    grp.add_argument('--query_dir', help="Directory of query FASTA files")
+    p.add_argument('--ref',      required=True)
     p.add_argument('--tax_file', required=True)
-    p.add_argument('--outdir', default='results')
-    p.add_argument('--qc', type=float, default=0.9)
-    p.add_argument('--pid', type=float, default=99)
-    p.add_argument('--raiseto', type=float, default=2.7)
-    p.add_argument('--threads', type=int, default=8)
-    args=p.parse_args()
+    p.add_argument('--outdir',   default='results')
+    p.add_argument('--qc',       type=float, default=0.9)
+    p.add_argument('--pid',      type=float, default=99)
+    p.add_argument('--raiseto',  type=float, default=2.7)
+    p.add_argument('--type',     dest='mm2type', default='map-ont',
+                   help='Minimap2 preset: map-ont,map-pb,map-hifi,etc.')
+    p.add_argument('--threads',  type=int,   default=8)
+    args = p.parse_args()
 
+    # build minimap2 index once
+    idx = f"{args.ref}.mmi"
+    if not os.path.exists(idx):
+        subprocess.run(['mappy','-d', idx, args.ref], check=True)
+
+    # collect all FASTA inputs
+    if args.query_dir:
+        fasta_files = sorted(glob.glob(os.path.join(args.query_dir, '*')))
+        fasta_files = [f for f in fasta_files if f.endswith(('.fa','.fasta','.fna'))]
+    else:
+        fasta_files = [args.query]
+
+    # make sure outdir exists
     os.makedirs(args.outdir, exist_ok=True)
-    # 1) build index & align
-    sam=os.path.join(args.outdir,'align.sam')
-    idxfile=args.ref+'.mmi'
-    if not os.path.exists(idxfile):
-        subprocess.run(['minimap2','-d',idxfile,args.ref], check=True)
-    with open(sam,'w') as outf:
-        subprocess.run(['minimap2','-ax','sr',idxfile,args.query,'-t',str(args.threads)], stdout=outf, check=True)
-    # 2) Phase 1 outliers
-    out1=phase1_minimap(args.query, sam, os.path.join(args.outdir,'phase1'), args.qc, args.pid, args.raiseto)
-    # 3) Phase 2-4
-    edges=make_edge_list(out1, os.path.join(args.outdir,'phase2','edges.txt'))
-    parts=make_partitions(edges, os.path.join(args.outdir,'phase3','partitions.txt'))
-    r2p=read_partition_assignment(out1, parts, os.path.join(args.outdir,'phase4','read2part.txt'))
-    # 4) Phases 5-6 classification
-    taxmap=load_taxonomy(args.tax_file)
-    out_lca=assign_lca(out1, taxmap, os.path.join(args.outdir,'phase5','tax_outliers.txt'))
-    part_lca=assign_lca(r2p, taxmap, os.path.join(args.outdir,'phase5','tax_partitions.txt'))
-    final=generate_output(out_lca, part_lca, os.path.join(args.outdir,'taxonomic_annotation.txt'))
-    print(f"Done. Final taxonomy: {final}", file=sys.stderr)
+
+    # prepare combined master output
+    combined_fp = os.path.join(args.outdir, 'combined_taxonomic_annotation.txt')
+    with open(combined_fp, 'w') as combo:
+        combo.write('SequenceID\tbest_pid\tbest_ref\t' + ';'.join(RANKS_FULL) + '\n')
+
+        # load taxonomy map once
+        taxmap = load_taxonomy(args.tax_file)
+
+        for query in fasta_files:
+            sample = os.path.splitext(os.path.basename(query))[0]
+            out_base = os.path.join(args.outdir, sample)
+            # make phase directories
+            for phase in ['phase1','phase2','phase3','phase4','phase5']:
+                os.makedirs(os.path.join(out_base, phase), exist_ok=True)
+
+            # 1) align
+            sam = os.path.join(out_base, 'align.sam')
+            cmd = ['minimap2','-ax', args.mm2type, idx, query, '-t', str(args.threads)]
+            with open(sam, 'w') as fh:
+                subprocess.run(cmd, stdout=fh, check=True)
+
+            # 2) phase 1 → 5
+            out1      = phase1(        query, sam, out_base+'/phase1', args.qc, args.pid, args.raiseto)
+            edges     = make_edge_list(out1,      out_base+'/phase2/edges.txt')
+            parts     = make_partitions(edges,    out_base+'/phase3/partitions.txt')
+            r2p       = read_partition_assignment(out1, parts, out_base+'/phase4/read2part.txt')
+            out_lca   = assign_lca(     out1, taxmap, out_base+'/phase5/tax_outliers.txt')
+            part_lca  = assign_lca(      r2p, taxmap, out_base+'/phase5/tax_partitions.txt')
+            final_tf  = generate_output( out_lca, part_lca, query,
+                                         out_base+'/taxonomic_annotation.txt',
+                                         taxmap)
+
+            # 3) append this sample’s results (skip its header)
+            with open(final_tf) as sf:
+                next(sf)
+                for ln in sf:
+                    combo.write(ln)
+
+            print(f"[{sample}] done.", file=sys.stderr)
+
+    print(f"\nCombined taxonomy at: {combined_fp}", file=sys.stderr)
 

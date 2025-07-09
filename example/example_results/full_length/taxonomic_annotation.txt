@@ -1,0 +1,6 @@
+SequenceID	best_pid	best_ref	domain;phylum;class;order;family;genus;species
+Sphingobacterium_puteal_r1	NA	NA	Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned
+Sphingobacterium_puteal_r2	NA	NA	Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned
+Mycobacterium_saskatchewanense_r1	100.00	2095314289:gtdb220_16S_emudb:21737	Bacteria;Actinomycetota;Actinomycetes;Mycobacteriales;Mycobacteriaceae;Mycobacterium;Mycobacterium_saskatchewanense
+Streptococcus_sobrinus_r1	100.00	884143626:gtdb220_16S_emudb:11519	Bacteria;Bacillota;Bacilli;Lactobacillales;Streptococcaceae;Streptococcus;Streptococcus_sobrinus
+unmapped	NA	NA	Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned

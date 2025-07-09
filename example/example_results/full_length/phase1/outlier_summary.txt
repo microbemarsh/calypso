@@ -1,0 +1,3 @@
+SequenceID	best_pid	best_ref	candidates	atlas_score
+Mycobacterium_saskatchewanense_r1	100.00	2095314289:gtdb220_16S_emudb:21737	2095314289:gtdb220_16S_emudb:21737	NA
+Streptococcus_sobrinus_r1	100.00	884143626:gtdb220_16S_emudb:11519	884143626:gtdb220_16S_emudb:11519	NA

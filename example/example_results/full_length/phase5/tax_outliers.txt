@@ -1,0 +1,3 @@
+SequenceID	domain;phylum;class;order;family;genus;species
+Mycobacterium_saskatchewanense_r1	Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned
+Streptococcus_sobrinus_r1	Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned;Unassigned

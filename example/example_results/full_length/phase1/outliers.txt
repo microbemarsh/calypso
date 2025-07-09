@@ -1,0 +1,2 @@
+Mycobacterium_saskatchewanense_r1	2095314289:gtdb220_16S_emudb:21737
+Streptococcus_sobrinus_r1	884143626:gtdb220_16S_emudb:11519
