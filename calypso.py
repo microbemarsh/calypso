@@ -327,7 +327,7 @@ if __name__=='__main__':
     # build minimap2 index once
     idx = f"{args.ref}.mmi"
     if not os.path.exists(idx):
-        subprocess.run(['mappy','-d', idx, args.ref], check=True)
+        subprocess.run(['minimap2','-d', idx, args.ref], check=True)
 
     # collect all FASTA inputs
     if args.query_dir:
