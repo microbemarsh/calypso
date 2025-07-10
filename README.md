@@ -1,9 +1,18 @@
 # calypso
 Reimplementation of [ATLAS](https://github.com/marbl/ATLAS) designed for use with [minimap2](https://github.com/lh3/minimap2)
-instead of [BLAST](https://www.ncbi.nlm.nih.gov/books/NBK279690/)
+instead of [BLAST](https://www.ncbi.nlm.nih.gov/books/NBK279690/).
+
+Calypso aligns each query sequence to the reference database (16S sequences from [GTDB 220](https://gtdb.ecogenomic.org/stats/r220)), filters out low-quality hits,
+uses an entropy-based MSA test to weed out stray alignments, groups hits by co-occurrence, assigns reads to graph clusters,
+calls an LCA on both the outliers and clusters (ATLAS scoring), and finally picks the deepest taxonomic level supported by the best percent identity.
+Then it merges everything into a single report.
+
+The database was created in a similar fashion to how [PICRUSt2](https://github.com/picrust/picrust2) makes it's database, however,
+we choose the longest 16S sequence when multiple 16S copies are [barrnap](https://github.com/tseemann/barrnap)'d from a singular taxid. 
+This leads to one 16S sequence being from one genomic reference from GTDB r220, making it possible to use GTDB taxonomies, without making consensus sequences.
 
 ## Installation
-Please make sure to have an active python base environment to which you can invoke venv.
+Please make sure to have an active python base environment to which you can invoke [venv](https://docs.python.org/3/library/venv.html).
 
 and
 
@@ -20,7 +29,7 @@ python -m venv calypso_env
 source ~/calypso_env/bin/activate
 
 # Install dependencies
-pip install mappy numpy scipy biopython networkx python-louvain pysam
+pip install numpy scipy biopython networkx python-louvain pysam
 
 # Test if you minimap2 in your path (if not repo is above)
 minimap2 -h
